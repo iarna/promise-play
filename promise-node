@@ -23,7 +23,7 @@ function make_promise() {
         return np.affirm();
     }
     return {
-        fulfill: f,
+        fulfill: function (v) { if ((typeof(v)==='object') && (typeof(v.then)==='function')) { v.then(f,e) } else { f(v) } },
         reject: e,
         affirm: function () { return { then: p }; },
     };
