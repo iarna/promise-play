@@ -1,0 +1,56 @@
+#!/usr/bin/env perl
+use v5.10.0;
+use strict;
+use warnings;
+
+sub make_promise {
+    my @todo;
+    my $done;
+    my $complete = sub {
+        my $a = shift;
+        sub {
+            die "Already done" if $done;
+            my @r=@_;
+            ($done = sub { $_->[$a](@r) for @todo; @todo = () })->();
+        };
+    };
+    my $f = $complete->(1);
+    my $e = $complete->(0);
+    my $p = sub {
+        my($t,$e) = @_;
+        my( $nf, $nr, $np ) = make_promise();
+        $t ||= sub {@_};
+        $e ||= sub {@_};
+        push @todo, [ sub { $nr->($e->(@_)) }, sub { $nf->($t->(@_)) } ];
+        if (defined $done) {
+            $done->();
+        }
+        return $np;
+    };
+    return $f, $e, $p;
+}
+
+{
+    my( $fulfill, $reject, $promise ) = make_promise();
+    sub start {
+        $promise;
+    }
+    sub ok {
+        say "OK";
+        $fulfill->("yay");
+    }
+    sub nok {
+        say "NOK";
+        $reject->("boo");
+    }
+
+}
+
+my $then = start();
+
+$then->(sub { say "SUCCESS: ",@_ }, sub { say "FAILURE: ",@_ });
+
+ok();
+say "COMPLETE";
+
+$then->(sub { say "SUCCESS2: ",@_ }, sub { say "FAILURE2: ",@_ });
