@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+"use strict";
+
+function make_promise() {
+    var todo = [];
+    var done;
+    var complete = function (a) {
+        return function () {
+            if (done) { throw new Error("Already done") }
+            var r=Array.prototype.slice.call(arguments);
+            (done = function () { todo.forEach( function(e){ e[a].apply(null,r) } ); todo=[] })();
+        };
+    };
+    var defaultcb = function (result) { return result; };
+    var f = complete(1);
+    var e = complete(0);
+    var compose = function (f1,f2,p) { return function () { var r=Array.prototype.slice.call(arguments); f1(f2.apply(null,r));  } };
+    var p = function (t,e) {
+        var np = make_promise();
+        process.nextTick(function() {
+            t = t || defaultcb;
+            e = e || defaultcb;
+            todo.push( [ compose(np.reject,e), compose(np.fulfill,t) ] );
+            if ( done ) {
+                done();
+            }
+        });
+        return np.affirm();
+    }
+    return {
+        fulfill: f,
+        reject: e,
+        affirm: function () { return { then: p }; },
+    };
+}
+
+var promise = make_promise();
+
+function start() {
+   return promise.affirm();
+}
+
+function ok() {
+    console.log("OK");
+    promise.fulfill("yay");
+}
+
+function nok() {
+    console.log("NOK");
+    promise.reject("boo");
+}
+
+
+var p = start();
+
+p.then(function (m) { console.log("SUCCESS:",m) }, function (m) { console.log("FAILURE:",m) });
+
+ok();
+console.log("COMPLETE");
+
+p.then(function (m) { console.log("SUCCESS2:",m) }, function (m) { console.log("FAILURE2:",m) });
+
+
+
+function asyncOp() {
+    var def = make_promise();
+    setTimeout(function(){
+        def.fulfill();
+        console.log('X');
+    });
+    return def.affirm();
+}
+
+asyncOp().then(function(){
+    console.log('Y');
+});
+
+console.log('Z');
