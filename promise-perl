@@ -54,3 +54,5 @@ ok();
 say "COMPLETE";
 
 $then->(sub { say "SUCCESS2: ",@_ }, sub { say "FAILURE2: ",@_ });
+
+nok();

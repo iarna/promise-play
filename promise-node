@@ -57,3 +57,5 @@ ok();
 console.log("COMPLETE");
 
 p.then(function (m) { console.log("SUCCESS2:",m) }, function (m) { console.log("FAILURE2:",m) });
+
+nok();
