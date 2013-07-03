@@ -5,21 +5,18 @@ function make_promise() {
     var todo = [];
     var done;
     var complete = function (a) {
-        return function () {
+        return function (v) {
             if (done) { throw new Error("Already done") }
-            var r=Array.prototype.slice.call(arguments);
-            (done = function () { todo.forEach( function(e){ e[a].apply(null,r) } ); todo=[] })();
+            (done = function () { todo.forEach( function(e){ e[a](v) } ); todo=[] })();
         };
     };
     var defaultcb = function (result) { return result; };
     var f = complete(1);
     var e = complete(0);
-    var compose = function (f1,f2,p) { return function () { var r=Array.prototype.slice.call(arguments); f1(f2.apply(null,r));  } };
+    var compose = function (f1,f2,p) { return function (v) { f1(f2(v));  } };
     var p = function (t,e) {
         var np = make_promise();
-        t = t || defaultcb;
-        e = e || defaultcb;
-        todo.push( [ compose(np.reject,e), compose(np.fulfill,t) ] );
+        todo.push( [ compose(np.reject,e||defaultcb), compose(np.fulfill,t||defaultcb) ] );
         if ( done ) {
             done();
         }
