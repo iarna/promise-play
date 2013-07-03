@@ -18,7 +18,7 @@ function make_promise() {
         var np = make_promise();
         todo.push( [ compose(np.reject,e||defaultcb), compose(np.fulfill,t||defaultcb) ] );
         if ( done ) {
-            done();
+            process.nextTick(done);
         }
         return np.affirm();
     }
