@@ -6,7 +6,7 @@ function make_promise() {
     var done;
     var complete = function (a) {
         return function () {
-            
+            if (done) { throw new Error("Already done") }
             var r=Array.prototype.slice.call(arguments);
             (done = function () { todo.forEach( function(e){ e[a].apply(null,r) } ); todo=[] })();
         };
