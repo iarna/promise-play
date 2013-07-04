@@ -1,0 +1,169 @@
+#!/usr/bin/env node
+"use strict";
+
+function Mediator() {
+    var M = {};
+    var todo = [];
+    var done;
+    M.resolve = function (v) {
+        if (done) { throw new Error("Already done") }
+        (done = function () { todo.forEach( function(e){ e(v) } ); todo=[] })();
+    };
+    M.deferred = {};
+    M.deferred.and = function (t) {
+        todo.push( t || function(r){return r} );
+        if ( done ) {
+            process.nextTick(done);
+        }
+    };
+    return M;
+}
+
+function ChainedMediator() {
+    var M = Mediator();
+    var unchained_resolve = M.resolve;
+    M.resolve = function (v) { ((typeof(v)==='object') && (typeof(v.then)==='function')) ? v.then(unchained_resolve) : unchained_resolve(v) };
+    var and = M.deferred.and;
+    M.deferred = {};
+    M.deferred.then = function (f) {
+        var C = ChainedMediator();
+        and( function (v) { C.resolve( f(v) ) } );
+        return C.deferred;
+    };
+    return M;
+}
+
+function Promise() {
+    var P = {};
+    var M = Mediator();
+    P.resolve = function (v) { M.resolve([null,v]) };
+    P.reject = function (v) { M.resolve([v,null]) };
+    P.deferred = {};
+    P.deferred.and = function (t,e) { return M.deferred.and(function (v) { v[0] !== null ? e && e(v[0]) : t && t(v[1]) }) }
+    return P;
+}
+
+function ChainedPromise() {
+    var P = Promise();
+    var unchained_resolve = P.resolve;
+    P.resolve = function (v) {
+        if ((typeof(v)==='object') && (typeof(v.then)==='function')) {
+            v.then(unchained_resolve,P.reject);
+        }
+        else {
+            unchained_resolve(v);
+        }
+    };
+    var and = P.deferred.and;
+    P.deferred = {};
+    P.deferred.then = function (t,e) {
+        var C = ChainedPromise();
+        t = t || function(v){return v};
+        e = e || function(v){return v};
+        and( function (v) { C.resolve(t(v)) }, function (v) { C.reject(e(v)) } );
+        return C.deferred;
+    };
+    return P;
+}
+
+var mediator = ChainedMediator();
+function start() {
+    return mediator.deferred;
+}
+function complete() {
+    return mediator.resolve("TEST");
+}
+
+var D = start();
+D.then(function (v) { console.log("COMPLETE1: ",v); return 23; })
+ .then(function (v) { console.log("COMPLETE2: ",v) });
+D.then(function (v) { console.log("COMPLETE3: ",v) });
+complete();
+D.then(function (v) { console.log("COMPLETE4: ",v) });
+
+var promise = ChainedPromise();
+function pstart() {
+   return promise.deferred;
+}
+
+function ok() {
+    console.log("OK");
+    var N = ChainedPromise();
+    promise.resolve(N.deferred);
+    N.resolve("yay");
+}
+
+function nok() {
+    console.log("NOK");
+    promise.reject("boo");
+}
+
+var P = pstart();
+
+P.then(function (m) { console.log("SUCCESS:",m); return m }, function (m) { console.log("FAILURE:",m); return m })
+ .then( function (m) { console.log("CHAINED SUCCESS:",m) }, function (m) { console.log("CHAINED FAILURE") });
+
+ok();
+console.log("C2");
+
+
+P.then(function (m) { console.log("SUCCESS2:",m) }, function (m) { console.log("FAILURE2:",m) });
+
+
+
+/*
+function make_promise() {
+    var todo = [];
+    var done;
+    var complete = function (a) {
+        return function (v) {
+            if (done) { throw new Error("Already done") }
+            (done = function () { todo.forEach( function(e){ e[a](v) } ); todo=[] })();
+        };
+    };
+    var defaultcb = function (result) { return result; };
+    var f = complete(1);
+    var e = complete(0);
+    var compose = function (f1,f2,p) { return function (v) { f1(f2(v));  } };
+    var p = function (t,e) {
+        var np = make_promise();
+        todo.push( [ compose(np.reject,e||defaultcb), compose(np.fulfill,t||defaultcb) ] );
+        if ( done ) {
+            process.nextTick(done);
+        }
+        return np.affirm();
+    }
+    return {
+        fulfill: function (v) { if ((typeof(v)==='object') && (typeof(v.then)==='function')) { v.then(f,e) } else { f(v) } },
+        reject: e,
+        affirm: function () { return { then: p }; },
+    };
+}
+
+var promise = make_promise();
+
+function start() {
+   return promise.affirm();
+}
+
+function ok() {
+    console.log("OK");
+    promise.fulfill("yay");
+}
+
+function nok() {
+    console.log("NOK");
+    promise.reject("boo");
+}
+
+
+var p = start();
+
+p.then(function (m) { console.log("SUCCESS:",m) }, function (m) { console.log("FAILURE:",m) });
+
+ok();
+console.log("COMPLETE");
+
+p.then(function (m) { console.log("SUCCESS2:",m) }, function (m) { console.log("FAILURE2:",m) });
+
+*/
