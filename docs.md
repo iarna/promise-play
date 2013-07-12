@@ -33,7 +33,7 @@ immediate answer, you can resolve prior to returning:
         return C;
     }
 
-It should be noted that it is an error to try to resolve the came continable
+It should be noted that it is an error to try to resolve the same continable
 more then once.  If you try, an error will be thrown.
 
 Someone using your library can use it as if it were callback based like so:
@@ -115,14 +115,14 @@ immediate answer, you can resolve prior to returning:
         return P;
     }
 
-It should be noted that it is an error to try to resolve the came continable
+It should be noted that it is an error to try to resolve the same promise
 more then once.  If you try, an error will be thrown.
 
 Someone using your library can use it as if it were callback based like so:
 
     example3().then(function() { console.log("... a second later.") });
 
-Or they can store away the continuable and use it later:
+Or they can store away the promise and use it later:
 
     var onConnect = example1();
     // ...
@@ -130,14 +130,14 @@ Or they can store away the continuable and use it later:
 
 If they call onConnect.then again, the new callback is guarenteed to be
 called with the same arguments as the original onConnect callback.  This
-means you can pass the continuable around as a value, that any number of
+means you can pass the promise around as a value, that any number of
 parts of your program can get data from without concern as to exactly when
 the result is actually computed.
 
 Promises are also chainable-- when you call them, they'll return a new
-continuable that will complete after the previous one does along with the
+promise that will complete after the previous one does along with the
 return value of your previous callback.  If your callback throws an
-exception it will be passed to the error argument of the next continuable.
+exception it will be passed to the error argument of the next promise.
 
     var sleep = example3(500);
     sleep.then( function(v) { console.log("Slept!"); return "FOO" })                     // prints: Slept!
