@@ -75,52 +75,39 @@ function Promise() {
     return P;
 }
 
-process.nextTick(function() {
+var foo = Continue();
+foo.resolve(new Error("BOOM"),"THIS1");
+foo(function(e,v) { console.log("CONTINUE EARLY RESOLVE1:",e,v); if (e) throw e; return v; })
+   (function(e,v) { console.log("CONTINUE EARLY RESOLVE2:",e,v); if (e) throw e; return v; })
+   (function(e,v) { console.log("CONTINUE EARLY RESOLVE3:",e,v) });
 
-    var foo = Continue();
-    foo.resolve(new Error("BOOM"),"THIS1");
-    foo(function(e,v) { console.log("CONTINUE EARLY RESOLVE1:",e,v); if (e) throw e; return v; })
-       (function(e,v) { console.log("CONTINUE EARLY RESOLVE2:",e,v); if (e) throw e; return v; })
-       (function(e,v) { console.log("CONTINUE EARLY RESOLVE3:",e,v) });
+var bar = Continue();
+bar(function(e,v) { console.log("CONTINUE LATE RESOLVE1:",e,v) });
+bar(function(e,v) { console.log("CONTINUE LATE RESOLVE2:",e,v) });
+bar.resolve(null,"THIS2");
 
-});
+var promise = Promise();
+function pstart() {
+   return promise.deferred;
+}
 
-process.nextTick(function() {
+function ok() {
+    var N = Promise();
+    promise.resolve(N.deferred);
+    N.resolve("yay");
+}
 
-   var bar = Continue();
-   bar(function(e,v) { console.log("CONTINUE LATE RESOLVE1:",e,v) });
-   bar(function(e,v) { console.log("CONTINUE LATE RESOLVE2:",e,v) });
-   bar.resolve(null,"THIS2");
+function nok() {
+    promise.reject("boo");
+}
 
-});
+var P = pstart();
 
-process.nextTick(function() {
+var P2 = P.then(function (m) { console.log("PROMISE1:",m); throw new Error(m) }, function (m) { console.log("PROMISE1 (err):",m) })
+          .then(function (m) { console.log("PROMISE2:",m) }, function (m) { console.log("PROMISE2: (err)",m) });
 
-    var promise = Promise();
-    function pstart() {
-       return promise.deferred;
-    }
+ok();
 
-    function ok() {
-        var N = Promise();
-        promise.resolve(N.deferred);
-        N.resolve("yay");
-    }
+P.then(function (m) { console.log("PROMISE3:",m) }, function (m) { console.log("PROMISE3: (err)",m) });
 
-    function nok() {
-        promise.reject("boo");
-    }
-
-    var P = pstart();
-
-    var P2 = P.then(function (m) { console.log("PROMISE1:",m); throw new Error(m) }, function (m) { console.log("PROMISE1 (err):",m) })
-              .then(function (m) { console.log("PROMISE2:",m) }, function (m) { console.log("PROMISE2: (err)",m) });
-
-    ok();
-
-    P.then(function (m) { console.log("PROMISE3:",m) }, function (m) { console.log("PROMISE3: (err)",m) });
-
-    P2.then(function (m) { console.log("PROMISE4:",m) }, function (m) { console.log("PROMISE4: (err)",m) });
-
-});
-
+P2.then(function (m) { console.log("PROMISE4:",m) }, function (m) { console.log("PROMISE4: (err)",m) });
