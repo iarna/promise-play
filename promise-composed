@@ -26,8 +26,13 @@ function Continue(resolver) {
     };
     var resolve = function () {
         if (result) { throw new Error("Continuable already resolved") }
-        var A = arguments;
-        (result = function(){ todo.forEach(function(T){ T.apply(null,A) }); todo=[] })();
+        if ( arguments.length == 1 && typeof(arguments[0])==='function' ) {
+            arguments[0](function() { C.resolve.apply(null,arguments) });
+        }
+        else {
+            var A = arguments;
+            (result = function(){ todo.forEach(function(T){ T.apply(null,A) }); todo=[] })();
+        }
     };
     resolve.withoutErrors = function (V) { this.resolve(null,V) }
     resolver( resolve );
