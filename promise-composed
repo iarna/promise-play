@@ -1,35 +1,37 @@
 #!/usr/bin/env node
 "use strict";
 
-function Continue() {
+function Continue(resolver) {
     var todo = [];
     var result = null;
     var C = function(then) {
-        var CH = Continue();
-        todo.push(function(e,v) {
-            var newErr;
-            var newVal;
-            try {
-                newVal = then(e,v);
-                if ( typeof(newVal) !== 'undefined' ) {
-                    CH.resolve(null,newVal);
+        var CH = Continue( function (resolve) {
+            todo.push(function(e,v) {
+                var newErr;
+                var newVal;
+                try {
+                    newVal = then(e,v);
+                    if ( typeof(newVal) !== 'undefined' ) {
+                        resolve(null,newVal);
+                    }
+                    else {
+                        resolve(e,v);
+                    }
                 }
-                else {
-                    CH.resolve(e,v);
+                catch (x) {
+                    resolve(x);
                 }
-            }
-            catch (x) {
-                CH.resolve(x);
-            }
+            });
         });
         if (result) { process.nextTick(result) }
         return CH;
     };
-    C.resolve = function (e,v) {
+    var resolve = function (e,v) {
         if (result) { throw new Error("Continuable already resolved") }
         (result = function(){ todo.forEach(function(t){ t(e,v) }); todo=[] })();
     };
-    C.resolve.withoutErrors = function (v) { C.resolve(null,v) }
+    resolve.withoutErrors = function (v) { this.resolve(null,v) }
+    resolver( resolve );
     return C;
 }
 
@@ -39,7 +41,23 @@ var def = function(value,defVal) {
 
 function Promise() {
     var P = {deferred:{}};
-    var C = Continue();
+    var C = Continue(function (resolve) {
+        P.resolve = function (value) { 
+            if ( typeof(value)==='object' && typeof(value.then)==='function' ) {
+                value.then(P.resolve,P.reject);
+            }
+            else {
+                resolve(null,value);
+            }
+        };
+        P.resolve.withCallback = function(e,v) {
+            if (e) { P.reject(e) } else { P.resolve(v) }
+        };
+        P.reject = function(value) {
+            resolve(value);
+        };
+    });
+
     P.deferred.then = function(then,error) {
         var PC = Promise();
         error = error || function (e) { return e };
@@ -58,33 +76,19 @@ function Promise() {
         });
         return PC.deferred;
     };
-    P.resolve = function (value) { 
-        if ( typeof(value)==='object' && typeof(value.then)==='function' ) {
-            value.then(P.resolve,P.reject);
-        }
-        else {
-            C.resolve(null,value);
-        }
-    };
-    P.resolve.withCallback = function(e,v) {
-        if (e) { P.reject(e) } else { P.resolve(v) }
-    };
-    P.reject = function(value) {
-        C.resolve(value);
-    };
     return P;
 }
 
-var foo = Continue();
-foo.resolve(new Error("BOOM"),"THIS1");
+var foo = Continue( function (resolve) {
+    resolve(new Error("BOOM"),"THIS1");
+});
 foo(function(e,v) { console.log("CONTINUE EARLY RESOLVE1:",e,v); if (e) throw e; return v; })
    (function(e,v) { console.log("CONTINUE EARLY RESOLVE2:",e,v); if (e) throw e; return v; })
    (function(e,v) { console.log("CONTINUE EARLY RESOLVE3:",e,v) });
 
-var bar = Continue();
+var bar = Continue( function (resolve) { process.nextTick(function(){ resolve(null,"THIS2") }) } );
 bar(function(e,v) { console.log("CONTINUE LATE RESOLVE1:",e,v) });
 bar(function(e,v) { console.log("CONTINUE LATE RESOLVE2:",e,v) });
-bar.resolve(null,"THIS2");
 
 var promise = Promise();
 function pstart() {

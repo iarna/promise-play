@@ -9,6 +9,15 @@ As a library author, to create a continuable:
         return C;
     }
 
+A more common pattern might be:
+
+    function example1(callback) {
+        C = Continue();
+        if (callback) { C(callback) }
+        fs.open( '/file', 'r', C.resolve );
+        return C;
+    }
+
 The C.resolve function has the signature (e,v) following the node convention
 of passing an error or null as the first argument.  If the callback you're
 using can't report errors, just have it use the withoutErrors variant:
@@ -87,6 +96,15 @@ As a library author, to create a promise is almost the same as a continuuable:
 
     function example1() {
         P = Promise();
+        net.createServer(P.resolve);
+        return P.deferred;
+    }
+
+A more common pattern might be:
+
+    function example1(callback) {
+        P = Promise();
+        if (callback) { P.deferred.then(callback) }
         net.createServer(P.resolve);
         return P.deferred;
     }
