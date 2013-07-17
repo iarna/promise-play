@@ -16,8 +16,8 @@ function Continue(resolver) {
                         resolve.apply(null,arguments);
                     }
                 }
-                catch (x) {
-                    resolve(x);
+                catch (X) {
+                    resolve(X);
                 }
             });
         });
@@ -26,10 +26,10 @@ function Continue(resolver) {
     };
     var resolve = function () {
         if (result) { throw new Error("Continuable already resolved") }
-        var a = arguments;
-        (result = function(){ todo.forEach(function(t){ t.apply(null,a) }); todo=[] })();
+        var A = arguments;
+        (result = function(){ todo.forEach(function(T){ T.apply(null,A) }); todo=[] })();
     };
-    resolve.withoutErrors = function (v) { this.resolve(null,v) }
+    resolve.withoutErrors = function (V) { this.resolve(null,V) }
     resolver( resolve );
     return C;
 }
@@ -49,8 +49,8 @@ function Promise() {
                 resolve(null,value);
             }
         };
-        P.resolve.withCallback = function(e,v) {
-            if (e) { P.reject(e) } else { P.resolve(v) }
+        P.resolve.withCallback = function(E,V) {
+            if (E) { P.reject(E) } else { P.resolve(V) }
         };
         P.reject = function(value) {
             resolve(value);
@@ -59,18 +59,18 @@ function Promise() {
 
     P.deferred.then = function(then,error) {
         var PC = Promise();
-        error = error || function (e) { return e };
-        C(function (e,v) {
+        error = error || function (E) { return E };
+        C(function (E,V) {
             try {
-                if (e) {
-                    PC.reject(def( error(e), e ));
+                if (E) {
+                    PC.reject(def( error(E), E ));
                 }
                 else {
-                    PC.resolve(def( then(v), v ));
+                    PC.resolve(def( then(V), V ));
                 }
             }
-            catch (x) {
-                PC.reject(x);
+            catch (X) {
+                PC.reject(X);
             }
         });
         return PC.deferred;
@@ -81,13 +81,13 @@ function Promise() {
 var foo = Continue( function (resolve) {
     resolve(new Error("BOOM"),"THIS1");
 });
-foo(function(e,v) { console.log("CONTINUE EARLY RESOLVE1:",e,v); if (e) throw e; return v; })
-   (function(e,v) { console.log("CONTINUE EARLY RESOLVE2:",e,v); if (e) throw e; return v; })
-   (function(e,v) { console.log("CONTINUE EARLY RESOLVE3:",e,v) });
+foo(function(E,V) { console.log("CONTINUE EARLY RESOLVE1:",E,V); if (E) throw E; return V; })
+   (function(E,V) { console.log("CONTINUE EARLY RESOLVE2:",E,V); if (E) throw E; return V; })
+   (function(E,V) { console.log("CONTINUE EARLY RESOLVE3:",E,V) });
 
 var bar = Continue( function (resolve) { process.nextTick(function(){ resolve(null,"THIS2") }) } );
-bar(function(e,v) { console.log("CONTINUE LATE RESOLVE1:",e,v) });
-bar(function(e,v) { console.log("CONTINUE LATE RESOLVE2:",e,v) });
+bar(function(E,V) { console.log("CONTINUE LATE RESOLVE1:",E,V) });
+bar(function(E,V) { console.log("CONTINUE LATE RESOLVE2:",E,V) });
 
 var promise = Promise();
 function pstart() {
@@ -106,11 +106,11 @@ function nok() {
 
 var P = pstart();
 
-var P2 = P.then(function (m) { console.log("PROMISE1:",m); throw new Error(m) }, function (m) { console.log("PROMISE1 (err):",m) })
-          .then(function (m) { console.log("PROMISE2:",m) }, function (m) { console.log("PROMISE2: (err)",m) });
+var P2 = P.then(function (M) { console.log("PROMISE1:",M); throw new Error(M) }, function (M) { console.log("PROMISE1 (err):",M) })
+          .then(function (M) { console.log("PROMISE2:",M) }, function (M) { console.log("PROMISE2: (err)",M) });
 
 ok();
 
-P.then(function (m) { console.log("PROMISE3:",m) }, function (m) { console.log("PROMISE3: (err)",m) });
+P.then(function (M) { console.log("PROMISE3:",M) }, function (M) { console.log("PROMISE3: (err)",M) });
 
-P2.then(function (m) { console.log("PROMISE4:",m) }, function (m) { console.log("PROMISE4: (err)",m) });
+P2.then(function (M) { console.log("PROMISE4:",M) }, function (M) { console.log("PROMISE4: (err)",M) });
