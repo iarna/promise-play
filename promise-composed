@@ -34,7 +34,7 @@ function Continue(resolver) {
             (result = function(){ todo.forEach(function(T){ T.apply(null,A) }); todo=[] })();
         }
     };
-    resolve.withoutErrors = function (V) { this.resolve(null,V) }
+    resolve.withoutErrors = function (V) { this(null,V) }
     resolver( resolve );
     return C;
 }
