@@ -6,16 +6,14 @@ function Continue(resolver) {
     var result = null;
     var C = function(then) {
         var CH = Continue( function (resolve) {
-            todo.push(function(e,v) {
-                var newErr;
-                var newVal;
+            todo.push(function() {
                 try {
-                    newVal = then(e,v);
+                    var next_result = then.apply(null,arguments);
                     if ( typeof(newVal) !== 'undefined' ) {
-                        resolve(null,newVal);
+                        resolve(null,next_result);
                     }
                     else {
-                        resolve(e,v);
+                        resolve.apply(null,arguments);
                     }
                 }
                 catch (x) {
@@ -26,9 +24,10 @@ function Continue(resolver) {
         if (result) { process.nextTick(result) }
         return CH;
     };
-    var resolve = function (e,v) {
+    var resolve = function () {
         if (result) { throw new Error("Continuable already resolved") }
-        (result = function(){ todo.forEach(function(t){ t(e,v) }); todo=[] })();
+        var a = arguments;
+        (result = function(){ todo.forEach(function(t){ t.apply(null,a) }); todo=[] })();
     };
     resolve.withoutErrors = function (v) { this.resolve(null,v) }
     resolver( resolve );
