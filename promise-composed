@@ -12,6 +12,9 @@ function Continue(resolvecb) {
         if ( A.length == 1 && typeof(A[0])==='function' ) {
             A[0]( resolve );
         }
+        else if ( A.length == 1 && typeof(A[0])==='object') and typeof(A[0]['then'])==='function' ) {
+            A[0].then( resolve );
+        }
         else {
             (result = function(){ todo.forEach(function(T){ T.apply(null,A) }); todo=[] })();
         }
