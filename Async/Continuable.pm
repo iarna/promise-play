@@ -75,4 +75,6 @@ method then($success,$failure) {
     });
 }
 
+method else($failure,$success) { $self->then($success,$failure) }
+
 1;
