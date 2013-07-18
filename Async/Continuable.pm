@@ -67,8 +67,7 @@ method then($success,$failure) {
     return $self->( func ($E,$V) {
         if ($E) {
             if ($failure) {
-                my @result = $failure->($E);
-                return @result if @result;
+                $failure->($E);
             }
             die $E;
         }
