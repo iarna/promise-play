@@ -23,10 +23,9 @@ function Continue(resolvecb) {
     };
     resolvecb( resolve );
 
-    var continuable = function(then,chain) {
+    var continuable = function(then) {
         if (result) { process.nextTick(result) }
-        if (!chain) { chain = Continue }
-        return chain( function (chained_resolve) {
+        return Continue( function (chained_resolve) {
             todo.push(function() {
                 var next_result;
                 try {
@@ -55,7 +54,7 @@ function Continue(resolvecb) {
                 throw E;
             }
             return success(V);
-        },Promise);
+        });
     };
     return continuable;
 }
