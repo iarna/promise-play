@@ -83,8 +83,6 @@ var baz = Continue(function (resolve) { resolve(null,"ALL DONE") });
 var bark = Continue(function (resolve) { resolve(baz) });
 bark(function(E,V) { report("CHAINED RESOLVE:",E,V) });
 
-var ok;
-var nok;
 var presolve;
 var promise = Promise(function (resolve) { presolve = resolve });
 function ok() {
