@@ -16,7 +16,11 @@ function Continue(resolvecb) {
             (result = function(){ todo.forEach(function(T){ T.apply(null,A) }); todo=[] })();
         }
     };
-    resolve.withoutErrors = function (V) { this(null,V) };
+    resolve.withoutErrors = function () {
+        var args = Array.prototype.slice.call(arguments);
+        args.unshift(null);
+        this.apply(null, [null,V]);
+    };
     resolvecb( resolve );
 
     var continuable = function(then,chain) {
