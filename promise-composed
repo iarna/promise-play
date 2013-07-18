@@ -1,121 +1,107 @@
 #!/usr/bin/env node
 "use strict";
 
-function Continue(resolver) {
+var continuableid = 0;
+function Continue(resolvecb) {
     var todo = [];
     var result = null;
-    var C = function(then) {
-        var CH = Continue( function (resolve) {
-            todo.push(function() {
-                try {
-                    var next_result = then.apply(null,arguments);
-                    if ( typeof(newVal) !== 'undefined' ) {
-                        resolve(null,next_result);
-                    }
-                    else {
-                        resolve.apply(null,arguments);
-                    }
-                }
-                catch (X) {
-                    resolve(X);
-                }
-            });
-        });
-        if (result) { process.nextTick(result) }
-        return CH;
-    };
+
     var resolve = function () {
         if (result) { throw new Error("Continuable already resolved") }
-        if ( arguments.length == 1 && typeof(arguments[0])==='function' ) {
-            arguments[0](function() { C.resolve.apply(null,arguments) });
+        var A = arguments;
+        if ( A.length == 1 && typeof(A[0])==='function' ) {
+            A[0]( resolve );
         }
         else {
-            var A = arguments;
             (result = function(){ todo.forEach(function(T){ T.apply(null,A) }); todo=[] })();
         }
     };
-    resolve.withoutErrors = function (V) { this(null,V) }
-    resolver( resolve );
-    return C;
+    resolve.withoutErrors = function (V) { this(null,V) };
+    resolvecb( resolve );
+
+    var continuable = function(then,chain) {
+        if (result) { process.nextTick(result) }
+        if (!chain) { chain = Continue }
+        return chain( function (chained_resolve) {
+            todo.push(function() {
+                var next_result;
+                try {
+                    var value = then.apply(null,arguments);
+                    if ( typeof(value) === 'undefined' ) {
+                        next_result = arguments;
+                    }
+                    else {
+                        next_result = [null,value];
+                    }
+                }
+                catch (X) {
+                    next_result = [X];
+                }
+                chained_resolve.apply(null, next_result);
+            });
+        });
+    };
+    continuable.then = function (success,failure) {
+        return continuable(function (E,V) {
+            if (E) {
+                if (failure) {
+                    var result = failure(E);
+                    if (typeof(result)!=='undefined') { return result }
+                }
+                throw E;
+            }
+            return success(V);
+        },Promise);
+    };
+    return continuable;
 }
 
-var def = function(value,defVal) {
-    return typeof(value) !== 'undefined' ? value : defVal;
-};
+var Promise = Continue;
 
-function Promise() {
-    var P = {deferred:{}};
-    var C = Continue(function (resolve) {
-        P.resolve = function (value) { 
-            if ( typeof(value)==='object' && typeof(value.then)==='function' ) {
-                value.then(P.resolve,P.reject);
-            }
-            else {
-                resolve(null,value);
-            }
-        };
-        P.resolve.withCallback = function(E,V) {
-            if (E) { P.reject(E) } else { P.resolve(V) }
-        };
-        P.reject = function(value) {
-            resolve(value);
-        };
-    });
-
-    P.deferred.then = function(then,error) {
-        var PC = Promise();
-        error = error || function (E) { return E };
-        C(function (E,V) {
-            try {
-                if (E) {
-                    PC.reject(def( error(E), E ));
-                }
-                else {
-                    PC.resolve(def( then(V), V ));
-                }
-            }
-            catch (X) {
-                PC.reject(X);
-            }
-        });
-        return PC.deferred;
-    };
-    return P;
+function report() {
+    var args = Array.prototype.slice.call(arguments);
+    args.unshift("%");
+    console.log.apply(null,args);
 }
 
 var foo = Continue( function (resolve) {
     resolve(new Error("BOOM"),"THIS1");
+    //resolve(null,"THIS1");
 });
-foo(function(E,V) { console.log("CONTINUE EARLY RESOLVE1:",E,V); if (E) throw E; return V; })
-   (function(E,V) { console.log("CONTINUE EARLY RESOLVE2:",E,V); if (E) throw E; return V; })
-   (function(E,V) { console.log("CONTINUE EARLY RESOLVE3:",E,V) });
+
+foo(function(E,V) { report("CONTINUE EARLY RESOLVE1:",E,V);})
+   (function(E,V) { report("CONTINUE EARLY RESOLVE2:",E,V); if (!E) return V+ " FOR FOO"; })
+   (function(E,V) { report("CONTINUE EARLY RESOLVE3:",E,V) });
 
 var bar = Continue( function (resolve) { process.nextTick(function(){ resolve(null,"THIS2") }) } );
-bar(function(E,V) { console.log("CONTINUE LATE RESOLVE1:",E,V) });
-bar(function(E,V) { console.log("CONTINUE LATE RESOLVE2:",E,V) });
+bar(function(E,V) { report("CONTINUE LATE RESOLVE1:",E,V) });
+bar(function(E,V) { report("CONTINUE LATE RESOLVE2:",E,V) });
+var baz = Continue(function (resolve) { resolve(null,"ALL DONE") });
+var bark = Continue(function (resolve) { resolve(baz) });
+bark(function(E,V) { report("CHAINED RESOLVE:",E,V) });
 
-var promise = Promise();
-function pstart() {
-   return promise.deferred;
-}
-
+var ok;
+var nok;
+var presolve;
+var promise = Promise(function (resolve) { presolve = resolve });
 function ok() {
-    var N = Promise();
-    promise.resolve(N.deferred);
-    N.resolve("yay");
+    var nresolve;
+    var N = Promise(function (resolve) { nresolve = resolve });
+    //nresolve(new Error("BAD"));
+    nresolve(null,"NYAY");
+    presolve(N);
+    //presolve(null,"yay");
 }
 
 function nok() {
-    promise.reject("boo");
+    presolve("boo");
 }
 
-var P = pstart();
-
-var P2 = P.then(function (M) { console.log("PROMISE1:",M); throw new Error(M) }, function (M) { console.log("PROMISE1 (err):",M) })
-          .then(function (M) { console.log("PROMISE2:",M) }, function (M) { console.log("PROMISE2: (err)",M) });
-
 ok();
+var P2 = promise.then(function (M) { report("PROMISE1:",M); throw new Error("Boo") }, function (M) { report("PROMISE1 (err):",M) })
+                .then(function (M) { report("PROMISE2:",M) }, function (M) { report("PROMISE2: (err)",M) });
 
-P.then(function (M) { console.log("PROMISE3:",M) }, function (M) { console.log("PROMISE3: (err)",M) });
+promise.then(function (M) { report("PROMISE3:",M) }, function (M) { report("PROMISE3: (err)",M) })
+       .then(function (M) { report("PROMISE4:",M) }, function (M) { report("PROMISE4: (err)",M) });
 
-P2.then(function (M) { console.log("PROMISE4:",M) }, function (M) { console.log("PROMISE4: (err)",M) });
+P2.then(function (M) { report("PROMISE5:",M) }, function (M) { report("PROMISE5: (err)",M) });
