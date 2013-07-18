@@ -4,42 +4,43 @@ Continuables
 As a library author, to create a continuable:
 
     function example1() {
-        C = Continue();
-        fs.open( '/file', 'r', C.resolve );
-        return C;
+        return Continue(function (resolve) {
+            fs.open( '/file', 'r', resolve );
+        });
     }
 
-A more common pattern might be:
+Or to be backwards compatible with a callback based API:
 
     function example1(callback) {
-        C = Continue();
+        C = Continue(function (resolve) {
+            fs.open( '/file', 'r', resolve );
+        });
         if (callback) { C(callback) }
-        fs.open( '/file', 'r', C.resolve );
         return C;
     }
 
-The C.resolve function has the signature (e,v) following the node convention
+The resolve function has the signature (e,v) following the node convention
 of passing an error or null as the first argument.  If the callback you're
 using can't report errors, just have it use the withoutErrors variant:
 
     function example2() {
-        C = Continue();
-        net.createServer( C.resolve.withoutErrors );
-        return C;
+        return Continue(function (resolve) {
+            net.createServer( resolve.withoutErrors );
+        });
     }
 
 If sometimes your function might be async and sometimes you have an
 immediate answer, you can resolve prior to returning:
 
     function example3(sleepFor) {
-        C = Continue();
-        if ( sleepFor ) {
-            setTimeout( C.resolve, sleepFor );
-        }
-        else {
-            C.resolve();
-        }
-        return C;
+        return Continue(function (resolve) {
+            if ( sleepFor ) {
+                setTimeout( resolve, sleepFor );
+            }
+            else {
+                resolve();
+            }
+        });
     }
 
 It should be noted that it is an error to try to resolve the same continable
@@ -70,66 +71,38 @@ exception it will be passed to the error argument of the next continuable.
          ( function(e,v) { console.log("Also got out", v); throw new Error("BOOM") }) // prints: Also got out FOO
          ( function(e,v) { console.log(e,v) })                                        // prints: [Error: BOOM] undefined
 
-Promises allow you to pass a promise object to a promise `resolve` method. 
-With continuables, you just pass the resolve method, eg:
+Like promises, if you resolve with a continuable that continuable will be
+used to determine the result of the current continuable:
 
     var sleep1 = example3(500):
-    var c1 = Continue();
-    
-    sleep1( c1.resolve );
+    var c1 = Continue(function (resolve) {
+        resolve(sleep1);
+    });
 
     c1( function () { console.log("DONE" } ); // called after sleep1 completes
 
 Promises
 --------
 
-Promises *do* the same thing and they're implemented using continuables, but
-they provide a different interface-- one compatible with most of the
-promises specs on CommonJS.  Specifically:
+Our continuables are also promises, that, is, they expose a "then" method
+that takes a success and an error callback.  (There is no onProgress
+callback for it is of the devil, use normal events for goodness sake.)
 
-* They return an object with `resolve(value)`, `reject(error)` methods and a
-  `deferred` property.
-* The `deferred` property has an object with a `then(onSuccess,onError)`
-  method (NOTE: no onProgress method, for it is of the devil)
-
-As a library author, to create a promise is almost the same as a continuuable:
+As a library author, there is no difference between the two:
 
     function example1() {
-        P = Promise();
-        net.createServer(P.resolve);
-        return P.deferred;
+        return Continue(function (resolve) {
+            net.createServer(resolve.withoutErrors);
+        });
     }
 
 A more common pattern might be:
 
     function example1(callback) {
-        P = Promise();
-        if (callback) { P.deferred.then(callback) }
-        net.createServer(P.resolve);
-        return P.deferred;
-    }
-
-The P.resolve function only takes a single value.  To notify of an error use
-P.reject.  If the callback you're using type typical (e,v) callback
-convention used widely in node, use the withCallback variant:
-
-    function example2() {
-        P = Promise();
-        fs.open('/file','r', P.resolve.withCallback );
-        return P;
-    }
-
-If sometimes your function might be async and sometimes you have an
-immediate answer, you can resolve prior to returning:
-
-    function example3(sleepFor) {
-        P = Promise();
-        if ( sleepFor ) {
-            setTimeout( P.resolve, sleepFor );
-        }
-        else {
-            P.resolve();
-        }
+        P = Continue(function (resolve) {
+            net.createServer(resolve.withoutErrors);
+        });
+        if (callback) { P.then(callback) }
         return P;
     }
 
@@ -144,7 +117,7 @@ Or they can store away the promise and use it later:
 
     var onConnect = example1();
     // ...
-    onConnect.then(function (e,conn) { /* ... */ });
+    onConnect.then(function (conn) { /* ... */ });
 
 If they call onConnect.then again, the new callback is guarenteed to be
 called with the same arguments as the original onConnect callback.  This
@@ -165,8 +138,8 @@ exception it will be passed to the error argument of the next promise.
 Promises can be used to resolve other promises:
 
     var sleep1 = example3(500):
-    var p1 = Promise();
-    
-    p1.resolve( sleep1 );
+    var p1 = Continue( function (resolve) {
+        resolve( sleep1 );
+    });
 
-    p1.deferred.then( function () { console.log("DONE" } ); // called after sleep1 completes
+    p1.then( function () { console.log("DONE" } ); // called after sleep1 completes
