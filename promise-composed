@@ -62,8 +62,6 @@ function Continue(resolvecb) {
     return continuable;
 }
 
-var Promise = Continue;
-
 function report() {
     var args = Array.prototype.slice.call(arguments);
     args.unshift("%");
@@ -86,20 +84,21 @@ var baz = Continue(function (resolve) { resolve(null,"ALL DONE") });
 var bark = Continue(function (resolve) { resolve(baz) });
 bark(function(E,V) { report("CHAINED RESOLVE:",E,V) });
 
-var presolve;
-var promise = Promise(function (resolve) { presolve = resolve });
-function ok() {
-    var nresolve;
-    var N = Promise(function (resolve) { nresolve = resolve });
-    //nresolve(new Error("BAD"));
-    nresolve(null,"NYAY");
-    presolve(N);
-    //presolve(null,"yay");
-}
+var ok, nok;
+var promise = Continue(function (resolve)  {
+    ok = function () {
+        var N = Continue(function (resolve) {
+            resolve(null,"NYAY");
+            //resolve(new Error("BAD"));
+        });
+        resolve(N);
+        //presolve(null,"yay");
+    }
 
-function nok() {
-    presolve("boo");
-}
+    nok = function () {
+        resolve("boo");
+    }
+});
 
 ok();
 var P2 = promise.then(function (M) { report("PROMISE1:",M); throw new Error("Boo") }, function (M) { report("PROMISE1 (err):",M) })
