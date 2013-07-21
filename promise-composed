@@ -58,7 +58,7 @@ function Continue(resolvecb) {
             return success(V);
         });
     };
-    continuable.else = function (failure,success) { continuable.then(success,failure) };
+    continuable.else = function (failure,success) { return continuable.then(success,failure) };
     return continuable;
 }
 
