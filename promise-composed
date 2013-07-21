@@ -30,17 +30,12 @@ function Continue(resolvecb) {
         return Continue( function (chained_resolve) {
             todo.push(function() {
                 var next_result;
-                try {
-                    var value = then.apply(null,arguments);
-                    if ( typeof(value) === 'undefined' ) {
-                        next_result = arguments;
-                    }
-                    else {
-                        next_result = [null,value];
-                    }
+                var value = then.apply(null,arguments);
+                if ( typeof(value) === 'undefined' ) {
+                    next_result = arguments;
                 }
-                catch (X) {
-                    next_result = [X];
+                else {
+                    next_result = arguments[0]==null ? [null,value] : [value];
                 }
                 chained_resolve.apply(null, next_result);
             });
@@ -48,14 +43,12 @@ function Continue(resolvecb) {
     };
     continuable.then = function (success,failure) {
         return continuable(function (E,V) {
-            if (E) {
-                if (failure) {
-                    var result = failure(E);
-                    if (typeof(result)!=='undefined') { return result }
-                }
-                throw E;
+            if (E !== null) {
+                return failure ? failure(E) : E;
             }
-            return success(V);
+            else {
+                return success ? success(V) : V;
+            }
         });
     };
     continuable.else = function (failure,success) { return continuable.then(success,failure) };
