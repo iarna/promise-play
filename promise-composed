@@ -94,7 +94,7 @@ var promise = Continue(function (resolve)  {
 });
 
 ok();
-var P2 = promise.then(function (M) { report("PROMISE1:",M); throw new Error("Boo") }, function (M) { report("PROMISE1 (err):",M) })
+var P2 = promise.then(function (M) { report("PROMISE1:",M); return "Boo" }, function (M) { report("PROMISE1 (err):",M) })
                 .then(function (M) { report("PROMISE2:",M) }, function (M) { report("PROMISE2: (err)",M) });
 
 promise.then(function (M) { report("PROMISE3:",M) }, function (M) { report("PROMISE3: (err)",M) })
